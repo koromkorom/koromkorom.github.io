@@ -1,1 +1,0 @@
-# koromkorom.github.io
