@@ -26,13 +26,28 @@ baseurl: "" # the subpath of your site, e.g. /blog
 url: "https://koromkorom.github.io" # the base hostname & protocol for your site, e.g. http://example.com
 markdown: kramdown
 highlighter: rouge
-#twitter_username: jekyllrb
-github_username:  koromkorom
 
 # Build settings
-theme: minima
+remote_theme: jekyll/minima
+minima:
+  skin: solarized-dark
+  social_links:
+    github: koromkorom
+    flickr: romankolbert
+    linkedin: roman-kolbert
+    
+header_pages:
+  - cv.markdown
+  - ethics.markdown
+  - about.markdown
+    
+author:
+  name: Roman Kolbert
+  email: "kolbertroman@gmail.com"
+
 plugins:
   - jekyll-feed
+  - jekyll-remote-theme
 
 # Exclude from processing.
 # The following items will not be processed, by default.
