@@ -28,7 +28,7 @@ markdown: kramdown
 highlighter: rouge
 
 # Build settings
-remote_theme: jekyll/minima
+remote_theme: mmistakes/jekyll-theme-basically-basic
 minima:
   skin: solarized-dark
   social_links:
