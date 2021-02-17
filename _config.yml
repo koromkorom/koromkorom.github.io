@@ -18,36 +18,37 @@
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
 
-title: Roman Kolbert
+title: Romans Projects
 email: kolbertroman@gmail.com
 description: >- # this means to ignore newlines until "baseurl:"
   I am a Software Developer, Cyber Security Engineer, Philosopher and Musician.
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "https://koromkorom.github.io" # the base hostname & protocol for your site, e.g. http://example.com
 markdown: kramdown
-highlighter: rouge
 
 # Build settings
 remote_theme: mmistakes/jekyll-theme-basically-basic
-minima:
-  skin: solarized-dark
-  social_links:
-    github: koromkorom
-    flickr: romankolbert
-    linkedin: roman-kolbert
-    
-header_pages:
-  - cv.markdown
-  - ethics.markdown
-  - about.markdown
     
 author:
   name: Roman Kolbert
   email: "kolbertroman@gmail.com"
+github_username: koromkorom
 
 plugins:
-  - jekyll-feed
   - jekyll-remote-theme
+  
+# Front Matter Defaults
+defaults:
+  # _posts
+  - scope:
+      path: "_posts"
+      type: posts
+    values:
+      layout: post
+      read_time: true
+      
+navigation_pages:
+  - about.md
 
 # Exclude from processing.
 # The following items will not be processed, by default.
