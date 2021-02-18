@@ -37,6 +37,12 @@ This repository is maintained by espressif, the vendor of the ESP32 chip.
 RTC_DATA_ATTR int bootCount = 0;
 RTC_DATA_ATTR int32_t uptime = 0;
 
+```
+The RTC_DATA_ATTR macros are special in the ESP32, because they survive reboot. 
+So I use them here to count boots.
+
+```cpp
+
 #if ARDUHAL_LOG_LEVEL >= ARDUHAL_LOG_LEVEL_DEBUG
 #include "esp32-hal-log.h"
 #define DEBUG_MSG(...) log_d("%s",String( __VA_ARGS__ ).c_str() )
@@ -46,6 +52,12 @@ RTC_DATA_ATTR int32_t uptime = 0;
 #define DEBUG_MSG(...)
 #define DEBUG_ENABLE false
 #endif
+
+```
+Here I define some debugging macros. It makes sense to turn this off in production. 
+Too much serial output draws a lot of power from a battery powered device. 
+
+```cpp
 
 CloudIoTCoreDevice *device;
 CloudIoTCoreMqtt *mqtt;
@@ -70,6 +82,10 @@ uint16_t sensb;
 uint16_t volt;
 int8_t power = 0;
 
+```
+These are just some declarations and initializiations.
+Now lets have a look at the OTA update.
+```cpp
 // Utility to extract header value from headers
 String getHeaderValue(String header, String headerName) {
   return header.substring(strlen(headerName.c_str()));
@@ -79,15 +95,15 @@ String getHeaderValue(String header, String headerName) {
 void execOTA(String newVersion) {
   WiFiClientSecure client;
   int contentLength = 0;
-bool isValidContentType = false;
+  bool isValidContentType = false;
 
-// Google Storage Bucket Config
-String host = "storage.googleapis.com"; // Host => bucket-name.s3.region.amazonaws.com
-int port = 443; // Non https. For HTTPS 443. As of today, HTTPS doesn't work.
-String bin = "/plantcare-firmware/v" + String(newVersion)  + "/firmware.bin"; // bin file name with a slash in front.
+  // Google Storage Bucket Config
+  String host = "storage.googleapis.com"; // Host => storage.googleapis.com
+  int port = 443; // Non https. For HTTPS 443. As of today, HTTPS doesn't work.
+  String bin = "/plantcare-firmware/v" + String(newVersion)  + "/firmware.bin"; // bin file name with a slash in front.
   client.setCACert(ota_root_ca);
   Serial.println("Connecting to: " + String(host));
-  // Connect to S3
+  // Connect to Google Storage
   if (client.connect(host.c_str(), port)) {
     // Connection Succeed.
     // Fecthing the bin
@@ -98,12 +114,6 @@ String bin = "/plantcare-firmware/v" + String(newVersion)  + "/firmware.bin"; //
                  "Host: " + host + "\r\n" +
                  "Cache-Control: no-cache\r\n" +
                  "Connection: close\r\n\r\n");
-
-    // Check what is being sent
-    //Serial.print(String("GET ") + bin + " HTTP/1.1\r\n" +
-    //               "Host: " + host + "\r\n" +
-    //                 "Cache-Control: no-cache\r\n" +
-    //                 "Connection: close\r\n\r\n");
 
     unsigned long timeout = millis();
     while (client.available() == 0) {
@@ -116,28 +126,10 @@ String bin = "/plantcare-firmware/v" + String(newVersion)  + "/firmware.bin"; //
     // Once the response is available,
     // check stuff
 
-    /*
-       Response Structure
-        HTTP/1.1 200 OK
-        x-amz-id-2: NVKxnU1aIQMmpGKhSwpCBh8y2JPbak18QLIfE+OiUDOos+7UftZKjtCFqrwsGOZRN5Zee0jpTd0=
-        x-amz-request-id: 2D56B47560B764EC
-        Date: Wed, 14 Jun 2017 03:33:59 GMT
-        Last-Modified: Fri, 02 Jun 2017 14:50:11 GMT
-        ETag: "d2afebbaaebc38cd669ce36727152af9"
-        Accept-Ranges: bytes
-        Content-Type: application/octet-stream
-        Content-Length: 357280
-        Server: AmazonS3
-                                   
-        {{BIN FILE CONTENTS}}
-
-    */
     while (client.available()) {
       // read line till /n
       String line = client.readStringUntil('\n');
-      //Serial.println(line);
-      //continue;
-      
+            
       // remove space, to check if the line is end of headers
       line.trim();
 
@@ -177,11 +169,10 @@ String bin = "/plantcare-firmware/v" + String(newVersion)  + "/firmware.bin"; //
       }
     }
   } else {
-    // Connect to S3 failed
-    // May be try?
-    // Probably a choppy network?
+    // Connect to Google failed
+    // Could be network problems 
     Serial.println("Connection to " + String(host) + " failed. Please check your setup");
-    // retry??
+    // retry?
     // execOTA();
   }
 
@@ -231,8 +222,11 @@ String bin = "/plantcare-firmware/v" + String(newVersion)  + "/firmware.bin"; //
     client.flush();
   }
 }
+```
+This function simply calls an HTTPS GET request to get the content and length of the new firmware binary to download. 
+If checks are ok, the download is executed. 
 
-
+```cpp
 int versionCompare(String v1, String v2) 
 { 
     //  vnum stores each numeric part of version 
@@ -291,6 +285,13 @@ String getJwt() {
   return jwt;
 }
 
+```
+Here we have a few helper functions. 
+Nothing special, but it surprised me, that comparing version numbers
+is such a hustle.
+
+```cpp
+
 bool initClients()
 {
   device = new CloudIoTCoreDevice(project_id, location, registry_id,
@@ -338,6 +339,11 @@ bool reinitClients()
   return res;
 }
 
+```
+Here I initialize a client for the MQTT protocol and a client for
+networking. The issue here is security. LTS is used so we need a 
+root CA.
+```cpp
 /*
 Method to sync time with ntp server
 */
@@ -354,6 +360,13 @@ time_t sync_time(){
     DEBUG_MSG("Timesync done. Time: " + String(ctime(&now)) + " uptime_Timesync_done:" + DEBUG_UPTIME);
     return now;
 }
+
+```
+This seems small, but is a big issue. Acurate time is important for 
+security protocolls and the sync itself took pretty long and I couldn't 
+figure out why exactly that is. My guess is, that time sync protocolls, 
+work with convergence somehow. 
+```cpp
 
 /*
 Method to print the reason by which ESP32
@@ -412,6 +425,10 @@ void dns(){
   DEBUG_MSG("IP: " + ServerIP.toString());
 }
 
+```
+Here we have again a few helper functions. I want to mention the dns() function, which simply tries to resolve the hostname of the mqtt server. 
+This also took quite long on the ESP, which surprised me a little. Now we are where the fun begins. setup() is the main function of any android based code. I will split up this funtion here because there is a lot going on.
+```cpp
 void setup()
 {
 
@@ -428,10 +445,12 @@ void setup()
 
   //Print the wakeup reason for ESP32
   print_wakeup_reason();
-
+  
+```
+Just a few wake up messages. This is important, because we want to know,
+why it woke up. 
+```cpp
   // Setup Sensor channel
-  //adc1_config_width(ADC_WIDTH_BIT_12);
-  //adc1_config_channel_atten(ADC1_CHANNEL_0, ADC_ATTEN_DB_11);
    touch_pad_init();
 
   // Setup Voltage channel
@@ -473,10 +492,11 @@ void setup()
     }
   }
   DEBUG_MSG("Connected to WiFi. uptime_WiFi_done:" + DEBUG_UPTIME);
+```
+Here the wifi connection is established. This worked really well.
 
-
+```cpp
   // DNS 
-  // Doing it here makes it faster for some reason
   DEBUG_MSG("Resolving hostname. uptime_DNS_init:" + DEBUG_UPTIME);
   dns();
   DEBUG_MSG("Got IP Adress. uptime_DNS_done:" + DEBUG_UPTIME);
