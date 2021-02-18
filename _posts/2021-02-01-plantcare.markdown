@@ -6,22 +6,9 @@ categories: jekyll update
 ---
 You’ll find this post in your `_posts` directory. Go ahead and edit it and re-build the site to see your changes. You can rebuild the site in many different ways, but the most common way is to run `jekyll serve`, which launches a web server and auto-regenerates your site when a file is updated.
 
-{% highlight cpp %}
-{% raw %}
-/******************************************************************************
- * Copyright 2018 Google
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *****************************************************************************/
+Let's chechout the code:
+
+```cpp
 #include <Arduino.h>
 #include <CloudIoTCore.h>
 #include <CloudIoTCoreMqtt.h>
@@ -33,7 +20,16 @@ You’ll find this post in your `_posts` directory. Go ahead and edit it and re-
 #include <driver/adc.h>
 #include <esp_wifi.h>
 #include <Update.h>
+```
 
+Most of these libraries are pretty comon. 
+The Cloud IoT Core library comes from here: <https://github.com/GoogleCloudPlatform/google-cloud-iot-arduino>
+It has tools to connect IoT devices to the Google Cloud IoT Core. 
+
+Some of the other libraries come from here: <https://github.com/espressif/arduino-esp32> 
+This repository is maintained by espressif, the vendor of the ESP32 chip. 
+
+```cpp
 #define uS_TO_S_FACTOR 1000000ull /* Conversion factor for micro seconds to seconds */
 #define TIME_TO_SLEEP 7200     /* Time ESP32 will go to sleep (in seconds) */
 
@@ -614,5 +610,4 @@ void setup()
 }
 
 void loop() {}
-{% endraw %}
-{% endhighlight %}
+```
