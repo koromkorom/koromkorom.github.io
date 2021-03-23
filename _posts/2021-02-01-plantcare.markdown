@@ -2,9 +2,9 @@
 layout: post
 title:  "Plantcare!"
 date:   2021-02-01 14:35:38 +0100
-categories: jekyll update
+categories: iot
 ---
-You’ll find this post in your `_posts` directory. Go ahead and edit it and re-build the site to see your changes. You can rebuild the site in many different ways, but the most common way is to run `jekyll serve`, which launches a web server and auto-regenerates your site when a file is updated.
+This is an IoT project using the google cloud platform. I developed an ESP32 based hardware device. The Firmware is updated over the air after CI/CD in Google Cloud Build. I present here the main cpp file of the firmware and the cloud bild file. 
 
 Let's chechout the code:
 
@@ -493,7 +493,7 @@ why it woke up.
   }
   DEBUG_MSG("Connected to WiFi. uptime_WiFi_done:" + DEBUG_UPTIME);
 ```
-Here the wifi connection is established. This worked really well.
+Here the wifi connection is established. This worked really well. 
 
 ```cpp
   // DNS 
@@ -501,25 +501,30 @@ Here the wifi connection is established. This worked really well.
   dns();
   DEBUG_MSG("Got IP Adress. uptime_DNS_done:" + DEBUG_UPTIME);
 
+```
+I decided to seperate DNS, because it took a long time during booting. 
+```cpp
+
   if(wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED)
   {
     DEBUG_MSG("Boot up caused by reset. No Deep Sleep. Syncing time.");
     sync_time();
   }
 
+```
+Here I checked wether boot up was caused by pushing a button on the device itself.
+```cpp
+
   // Init and Connect MQTT
   DEBUG_MSG("Init MQTT started. uptime_MQTT_init_init:" + DEBUG_UPTIME);
   bool res = initClients();
-  // When init failes.  
+  // Only do this, when initialization is successful.   
   if (res) {
     DEBUG_MSG("Init MQTT started. uptime_MQTT_init_done:" + DEBUG_UPTIME);
     DEBUG_MSG("Init MQTT started. uptime_MQTT_init:" + DEBUG_UPTIME);
     int loopReturn = mqttClient->loop();
     lwmqtt_return_code_t returnCode = mqttClient->returnCode();
     int reconnect_count = 0;
-    if(returnCode == LWMQTT_NOT_AUTHORIZED){
-      // One reason could be wrong server ip --> get new IP? (DNS)
-    }
     if(returnCode == LWMQTT_NOT_AUTHORIZED)
     {
       DEBUG_MSG("MQTT Bad Client ID. Maybe time out of sync. Syncing time.");
@@ -532,7 +537,10 @@ Here the wifi connection is established. This worked really well.
       time_t ntp = sync_time();
       DEBUG_MSG("Time was off by [bootup-ntp]:" + String(bootuptime-ntp));
     }
-
+```
+Many problems were caused by an off system clock. It is a good thing, this is 
+failing. Otherwise this could be exploited. 
+```cpp
     while (returnCode != LWMQTT_CONNECTION_ACCEPTED)
     {
       DEBUG_MSG("Reinitiating clients. Count: " + String(reconnect_count));
@@ -541,7 +549,9 @@ Here the wifi connection is established. This worked really well.
       reconnect_count++;
     }
     DEBUG_MSG("Init and Connect MQTT done. uptime_MQTT_done:" + DEBUG_UPTIME);
-
+```
+Sometimes it helps to just reinitialize everything. 
+```cpp
     // Read sensor data and pack msg
     DEBUG_MSG("Read Sensor data started. uptime_sens_init:" + DEBUG_UPTIME);
     time_t nownow;
@@ -565,27 +575,24 @@ Here the wifi connection is established. This worked really well.
                     String(",\"bootCount\":") + bootCount +
                     String("}");
     DEBUG_MSG("Read Sensor data done uptime_sens_done:" + DEBUG_UPTIME);
-
+```
+The payload is just a long string, with all the sonsor data packed in it. 
+```cpp
     // Sending MQTT message
     DEBUG_MSG("Sending MQTT message started. uptime_send_init:" + DEBUG_UPTIME);
     DEBUG_MSG(String("Sending String:") + payload);
     mqtt->publishTelemetry(payload);
     //DEBUG_MSG("Message Pubished. MQTT Client State: " + client->printmqttstate(client->getMqttState()) + " uptime_send_done:" + DEBUG_UPTIME);
-
+```
+Here the data is send to the google cloud mqtt interface. 
+```cpp
     // Disconecting
     DEBUG_MSG("Disconnecting started. uptime_disc_init:" + DEBUG_UPTIME);
     mqttClient->disconnect();
-    //DEBUG_MSG(String("Client Disconnected. MQTT Client State: " + client->printmqttstate(client->getMqttState())) + " uptime_disc_init:" + DEBUG_UPTIME);
-    // Advanced behavior: force client to disconnect when JWT expires
-    // to reconnect outside of clock drift bounds.
-    //if (now - lastDisconnect > (forceJwtExpSecs * 1000)) {
-    //lastDisconnect = now;
-    //mqttClient->disconnect();
-    //}
+
   } else {
     DEBUG_MSG("Init Failed. Going to sleep again.");
   }
-
   /*
   First we configure the wake up source
   We set our ESP32 to wake up every 5 seconds
@@ -615,7 +622,6 @@ Here the wifi connection is established. This worked really well.
   reset occurs.
   */
 
-  //delay(5000);
   DEBUG_MSG("Going to sleep now. uptime_sleep:" + DEBUG_UPTIME);
   DEBUG_MSG("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
   Serial.flush();
@@ -628,6 +634,21 @@ Here the wifi connection is established. This worked really well.
   esp_deep_sleep_start();
   DEBUG_MSG("This will never be printed");
 }
+```
+This initialises a device specific feature. It can go into deep sleep 
+for some time and wake up based on different causes. 
 
-void loop() {}
+
+
+This code is now compiled inside a docker container running in google cloud. 
+A push to github triggers the following simple cloudbuild script, which 
+copies the binary into a new directory for each version.
+
+```yaml
+steps:
+- name: 'gcr.io/plantcare01-223216/quickstart-image:tag1'  
+artifacts: 
+  objects: 
+    location: 'gs://plantcare-firmware/$TAG_NAME'
+    paths: ['.pio/build/esp32dev/firmware.bin']
 ```
